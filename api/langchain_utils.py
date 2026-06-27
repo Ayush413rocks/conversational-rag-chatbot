@@ -1,17 +1,16 @@
 from dotenv import load_dotenv
 load_dotenv()
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_classic.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from typing import List
 from langchain_core.documents import Document
 import os
 from chroma_utils import vectorstore
 
 retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
-
 output_parser = StrOutputParser()
 
 contextualize_q_system_prompt = (
@@ -35,9 +34,9 @@ qa_prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}")
 ])
 
-def get_rag_chain(model="gpt-4o-mini"):
-    llm = ChatOpenAI(model=model)
+def get_rag_chain(model="llama-3.3-70b-versatile"):
+    llm = ChatGroq(model=model, api_key=os.getenv("GROQ_API_KEY"))
     history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
     question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-    rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)    
+    rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
     return rag_chain
