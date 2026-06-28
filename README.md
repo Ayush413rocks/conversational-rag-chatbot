@@ -1,259 +1,149 @@
-# RAG Chatbot with Conversational Memory
+# Conversational RAG Chatbot
 
-A Retrieval-Augmented Generation (RAG) chatbot built with LangChain that supports conversational memory for follow-up questions. Features FastAPI backend and Streamlit frontend with document upload capabilities.
+A production-ready conversational AI chatbot built with **FastAPI**, **LangChain**, **ChromaDB**, and **Streamlit** that enables intelligent document Q&A with multi-turn conversational memory.
 
----
+## Overview
 
-## 🚀 Features
+This project implements a **Retrieval-Augmented Generation (RAG)** pipeline that allows users to upload documents (PDF, DOCX, HTML) and interact with their content through a conversational interface. Unlike standard one-shot Q&A systems, this chatbot maintains conversation history across follow-up questions, enabling natural multi-turn dialogue.
 
-- **Document Upload**: Supports PDF, DOCX, HTML files (200MB limit per file)
-- **Conversational Memory**: Maintains context for follow-up questions
-- **Multiple Models**: Choose between GPT-4o-mini and other model options
-- **Vector Storage**: Efficient document retrieval with ChromaDB
-- **Interactive API**: FastAPI backend with Swagger documentation
-- **LangSmith Integration**: Built-in tracing and monitoring
+The system uses **HuggingFace sentence transformers** for generating semantic embeddings, **ChromaDB** as the vector store for efficient similarity search, and **Groq's Llama 3.3** as the LLM for generating context-aware responses.
 
----
-
-## ⚙️ Configuration
-
-Create a `.env` file in the root with the following variables:
-
-```env
-OPENAI_API_KEY=your_openai_api_key
-LANGSMITH_API_KEY=your_langsmith_api_key
-````
-
----
-
-## 📦 Project Structure
+## Architecture
 
 ```
-RAG-CHATBOT/
-├── api/                         # FastAPI backend server
-│   ├── __pycache__/             # Python bytecode cache
-│   ├── chroma_db/               # ChromaDB vector storage
-│   ├── app.log                  # Logging file
-│   ├── chroma_utils.py          # ChromaDB utilities
-│   ├── db_utils.py              # Chat history & metadata DB logic
-│   ├── langchain_utils.py       # LangChain RAG pipeline
-│   ├── main.py                  # FastAPI entry point
-│   ├── pydantic_models.py       # Request/response validation
-│   └── rag_app.db               # SQLite DB
-├── app/                         # Streamlit frontend
-│   ├── __pycache__/             # Python bytecode cache
-│   ├── api_utils.py             # FastAPI client utils
-│   ├── chat_interface.py        # Chat UI
-│   ├── sidebar.py               # File upload & model switch
-│   └── streamlit_app.py         # Streamlit app
-├── docs/                        # Sample documents
-├── documentation/               # Guides & screenshots
-│   ├── screenshots/             # UI screenshots
-│   ├── api_reference.md         # API docs
-│   └── user_guide.md            # Manual
-├── .env                         # Env variables
-├── .gitignore                   # Git ignore rules
-├── LICENSE                      # MIT License
-├── notes.txt                    # Dev notes
-├── README.md                    # This file
-└── requirements.txt             # Dependencies
+┌─────────────────┐     HTTP      ┌─────────────────────────────────┐
+│   Streamlit UI  │ ────────────► │        FastAPI Backend          │
+│   (app/)        │               │        (api/)                   │
+└─────────────────┘               │                                 │
+                                  │  ┌─────────────┐               │
+                                  │  │  LangChain  │               │
+                                  │  │  RAG Chain  │               │
+                                  │  └──────┬──────┘               │
+                                  │         │                       │
+                                  │  ┌──────▼──────┐  ┌─────────┐  │
+                                  │  │  ChromaDB   │  │  Groq   │  │
+                                  │  │  Vector DB  │  │  LLM    │  │
+                                  │  └─────────────┘  └─────────┘  │
+                                  └─────────────────────────────────┘
 ```
 
----
+## Tech Stack
 
-## ⚡ Quick Start
+| Layer | Technology |
+|---|---|
+| Frontend | Streamlit |
+| Backend | FastAPI + Uvicorn |
+| RAG Pipeline | LangChain |
+| Vector Store | ChromaDB |
+| Embeddings | HuggingFace `all-MiniLM-L6-v2` |
+| LLM | Groq `llama-3.3-70b-versatile` |
+| Document Parsing | PyPDF, Docx2txt |
 
-### 🔧 Prerequisites
+## Key Features
 
-* Python 3.9+
-* OpenAI API Key
-* LangSmith API Key (optional)
+- **Multi-turn conversational memory** — maintains context across follow-up questions using LangChain's history-aware retriever
+- **Multi-format document support** — upload and index PDF, DOCX, and HTML files
+- **Semantic search** — uses sentence transformer embeddings for meaning-based retrieval rather than keyword matching
+- **RESTful API** — FastAPI backend with full Swagger documentation at `/docs`
+- **Real-time document management** — upload, list, and delete documents from the vector store
 
-### 🛠 Installation
+## Why These Technology Choices
 
-1. **Clone the repository**
+- **Groq over OpenAI** — Groq provides free, ultra-fast LLM inference using custom LPU hardware, making it ideal for development and deployment without API costs
+- **HuggingFace embeddings over OpenAI embeddings** — `all-MiniLM-L6-v2` runs locally, eliminating embedding API costs while maintaining strong semantic search quality
+- **ChromaDB over FAISS** — ChromaDB provides persistent storage with metadata filtering, enabling document-level deletion which FAISS doesn't support natively
+- **FastAPI over Flask** — async support, automatic OpenAPI documentation, and Pydantic validation make FastAPI better suited for production AI APIs
 
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/rag-chatbot.git
-   cd rag-chatbot
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Configure environment**
-
-   Create a `.env` file using the sample and add your keys:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-4. **Run the FastAPI backend**
-
-   ```bash
-   cd api
-   uvicorn main:app --reload --port 8000
-   ```
-
-5. **Run the Streamlit frontend**
-
-   In a new terminal:
-
-   ```bash
-   cd app
-   streamlit run streamlit_app.py --server.port 8500
-   ```
-
-6. **Access the application**
-
-   * Streamlit UI: [http://localhost:8500](http://localhost:8500)
-   * Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-
----
-
-## 📚 Usage Guide
-
-### 📤 Upload Documents
-
-1. Open the Streamlit UI
-2. Use the sidebar to upload PDF, DOCX, or HTML files
-3. Uploaded docs are indexed into ChromaDB
-
-### 💬 Chat with Documents
-
-1. Ask a question related to the uploaded content
-2. Ask follow-up questions — context is remembered
-3. Switch models via the sidebar dropdown
-
----
-
-## 🧪 API Usage Example (Python)
-
-```python
-import requests
-
-# Upload a document
-files = {'file': open('document.pdf', 'rb')}
-upload_res = requests.post('http://localhost:8000/upload-doc', files=files)
-
-# Chat with the document
-chat_payload = {
-    "message": "What is this document about?",
-    "session_id": "user123"
-}
-chat_res = requests.post('http://localhost:8000/chat', json=chat_payload)
-print(chat_res.json())
-```
-
----
-
-## 🔌 API Endpoints
-
-| Endpoint      | Method | Description                  |
-| ------------- | ------ | ---------------------------- |
-| `/chat`       | POST   | Chat with uploaded documents |
-| `/upload-doc` | POST   | Upload and index documents   |
-| `/list-docs`  | GET    | List all uploaded documents  |
-| `/delete-doc` | POST   | Delete a specific document   |
-
----
-
-## 🧠 Architecture Overview
-
-1. **Document Ingestion**: Files are split into text chunks
-2. **Embedding**: Text is embedded using OpenAI embeddings
-3. **Storage**: Embeddings are stored in ChromaDB
-4. **Retrieval**: Relevant chunks are fetched for user queries
-5. **Generation**: LangChain passes context and query to LLM
-6. **Memory**: Session IDs preserve conversation history
-
----
-
-## 🛠 Environment Setup
-
-1. **Copy template and configure**
-
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Edit `.env` and add keys**
-
-   * Get your OpenAI API key from: [https://platform.openai.com/account/api-keys](https://platform.openai.com/account/api-keys)
-   * (Optional) Get LangSmith API key from: [https://smith.langchain.com/](https://smith.langchain.com/)
-
-3. **Keep `.env` private**
-
-   `.env` is included in `.gitignore` to avoid committing secrets.
-
----
-
-## 🔑 Required API Keys
-
-* **OPENAI\_API\_KEY**: Required for embeddings and completions
-* **LANGSMITH\_API\_KEY**: For request tracing and logging
-
----
-
-## 🖼 Screenshots
-
-Screenshots are located in:
+## Project Structure
 
 ```
-documentation/screenshots/
+conversational-rag-chatbot/
+├── api/
+│   ├── main.py              # FastAPI app and route handlers
+│   ├── langchain_utils.py   # RAG chain with conversational memory
+│   ├── chroma_utils.py      # Document ingestion and vector store
+│   ├── db_utils.py          # SQLite session management
+│   └── pydantic_models.py   # Request/response schemas
+├── app/
+│   ├── streamlit_app.py     # Main Streamlit entry point
+│   ├── chat_interface.py    # Chat UI components
+│   ├── sidebar.py           # Document upload and model selection
+│   └── api_utils.py         # FastAPI client calls
+├── .env.example
+└── requirements.txt
 ```
 
----
+## Setup and Installation
 
-## 🤝 Contributing
+### Prerequisites
+- Python 3.10+
+- Groq API key (free at [console.groq.com](https://console.groq.com))
 
-We welcome contributions!
+### Installation
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes and commit
-4. Open a pull request
+```bash
+# Clone the repository
+git clone https://github.com/Ayush413rocks/conversational-rag-chatbot.git
+cd conversational-rag-chatbot
 
----
+# Create virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Mac/Linux
 
-## 📜 License
-
-This project is licensed under the MIT License.
-
-```
-MIT License
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-...
+# Install dependencies
+pip install -r requirements.txt
+pip install langchain-groq langchain-huggingface sentence-transformers
 ```
 
-See the full [LICENSE](LICENSE) file for more details.
+### Configuration
 
----
+```bash
+cp .env.example .env
+```
 
-## 🙏 Acknowledgments
+Edit `.env` and add your Groq API key:
 
-* Built with [LangChain](https://www.langchain.com/)
-* Vector storage by [ChromaDB](https://www.trychroma.com/)
-* UI by [Streamlit](https://streamlit.io/)
-* Backend by [FastAPI](https://fastapi.tiangolo.com/)
-* Observability via [LangSmith](https://smith.langchain.com/)
+```
+GROQ_API_KEY=your_groq_api_key_here
+LANGCHAIN_TRACING_V2=false
+```
 
----
+### Running the Application
 
-## 📬 Contact
+**Terminal 1 — Start the FastAPI backend:**
+```bash
+cd api
+uvicorn main:app --reload
+```
 
-Have feedback, issues, or ideas?
+**Terminal 2 — Start the Streamlit frontend:**
+```bash
+cd app
+streamlit run streamlit_app.py
+```
 
-* Open an issue on GitHub
-* Submit a pull request
-* Contact the maintainer (aryanmahawar205@gmail.com)
+Open `http://localhost:8501` in your browser.
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/chat` | Send a message and get a RAG response |
+| POST | `/upload-doc` | Upload and index a document |
+| GET | `/list-docs` | List all indexed documents |
+| POST | `/delete-doc` | Remove a document from the vector store |
+
+Full API documentation available at `http://localhost:8000/docs`
+
+## How It Works
+
+1. **Document Ingestion** — uploaded files are parsed, split into chunks (1000 tokens, 200 overlap), and converted to embeddings using `all-MiniLM-L6-v2`
+2. **Vector Storage** — embeddings are stored in ChromaDB with file metadata for efficient retrieval and deletion
+3. **Query Processing** — user questions are reformulated using chat history via a history-aware retriever, then used to fetch the top-k most semantically similar chunks
+4. **Response Generation** — retrieved chunks are passed as context to Groq's Llama 3.3, which generates a grounded, context-aware response
+5. **Memory** — conversation history is maintained per session, enabling natural follow-up questions
+
+## License
+
+MIT
